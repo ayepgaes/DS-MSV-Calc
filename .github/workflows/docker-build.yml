@@ -197,6 +197,21 @@ jobs:
             --json-file-output=snyk-results.json
             --sarif-file-output=snyk-results.sarif
 
+      - name: Verificar archivos generados por Snyk
+        run: |
+          echo "📁 Verificando archivos generados por Snyk..."
+          ls -la *.json *.sarif 2>/dev/null || echo "No se encontraron archivos de resultados"
+          if [ -f snyk-results.json ]; then
+            echo "✅ Archivo JSON encontrado"
+          else
+            echo "⚠️ Archivo JSON no encontrado"
+          fi
+          if [ -f snyk-results.sarif ]; then
+            echo "✅ Archivo SARIF encontrado"
+          else
+            echo "⚠️ Archivo SARIF no encontrado (puede ser normal si no hay vulnerabilidades)"
+          fi
+
       - name: Procesar resultados de Snyk
         id: snyk-results
         run: |
@@ -220,6 +235,13 @@ jobs:
             echo "high=$HIGH" >> $GITHUB_OUTPUT
             echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
             echo "low=$LOW" >> $GITHUB_OUTPUT
+            
+            # Verificar si existe SARIF
+            if [ -f snyk-results.sarif ]; then
+              echo "sarif_exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "sarif_exists=false" >> $GITHUB_OUTPUT
+            fi
             
             # Generar reporte detallado
             echo "📄 Generando reporte detallado..."
@@ -245,11 +267,12 @@ jobs:
             echo "high=0" >> $GITHUB_OUTPUT
             echo "medium=0" >> $GITHUB_OUTPUT
             echo "low=0" >> $GITHUB_OUTPUT
+            echo "sarif_exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Subir reporte SARIF a GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && steps.snyk-results.outputs.sarif_exists == 'true'
         with:
           sarif_file: snyk-results.sarif
           wait-for-processing: false
@@ -263,6 +286,7 @@ jobs:
             snyk-results.json
             snyk-report-detailed.json
             snyk-results.sarif
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Mostrar resumen del escaneo

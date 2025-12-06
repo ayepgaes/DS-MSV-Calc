@@ -22,6 +22,13 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
+      - name: Configurar owner en minúsculas
+        id: set-owner
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lower=$OWNER_LOWER" >> $GITHUB_OUTPUT
+          echo "Owner en minúsculas: $OWNER_LOWER"
+
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -36,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -53,7 +60,7 @@ jobs:
           file: ./CalculatorBackendSpringbootProject/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -74,7 +81,8 @@ jobs:
 
       - name: Ejecutar contenedor para health check
         run: |
-          TEST_IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}"
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          TEST_IMAGE="${{ env.REGISTRY }}/$OWNER_LOWER/${{ env.IMAGE_NAME }}:test-${{ github.sha }}"
           docker pull $TEST_IMAGE
           docker run -d -p 8080:8080 --name calculadora-backend-test $TEST_IMAGE
           echo "Contenedor iniciado, esperando a que la aplicación esté lista..."
@@ -164,11 +172,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configurar owner en minúsculas
+        id: set-owner
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lower=$OWNER_LOWER" >> $GITHUB_OUTPUT
+          echo "Owner en minúsculas: $OWNER_LOWER"
+
       - name: Extraer metadatos (etiquetas, etiquetas) para Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -182,7 +197,7 @@ jobs:
 
       - name: Re-taggear y publicar imagen (sin reconstruir)
         run: |
-          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}"
+          SOURCE_IMAGE="${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}"
           
           # Obtener los tags finales (separados por comas)
           TAGS="${{ steps.meta.outputs.tags }}"
@@ -201,7 +216,7 @@ jobs:
         run: |
           echo "✅ Imagen construida y verificada exitosamente:"
           echo "Tags: ${{ steps.meta.outputs.tags }}"
-          echo "Puedes acceder a la imagen en: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          echo "Puedes acceder a la imagen en: ${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}"
 
   cleanup:
     runs-on: ubuntu-latest
@@ -219,7 +234,7 @@ jobs:
           # Obtener el ID de la versión del paquete usando el tag
           PACKAGE_NAME="${{ env.IMAGE_NAME }}"
           TAG="test-${{ github.sha }}"
-          OWNER="${{ github.repository_owner }}"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           
           echo "Buscando versión del paquete con tag: $TAG"
           

@@ -161,9 +161,140 @@ jobs:
           docker stop calculadora-backend-test || true
           docker rm calculadora-backend-test || true
 
-  publish:
+  security-scan:
     runs-on: ubuntu-latest
     needs: [build, health-check]
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+      id-token: write
+
+    steps:
+      - name: Iniciar sesión en GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar owner en minúsculas
+        id: set-owner
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lower=$OWNER_LOWER" >> $GITHUB_OUTPUT
+          echo "Owner en minúsculas: $OWNER_LOWER"
+
+      - name: Ejecutar escaneo de vulnerabilidades con Snyk
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.REGISTRY }}/${{ steps.set-owner.outputs.owner_lower }}/${{ env.IMAGE_NAME }}:test-${{ github.sha }}
+          args: |
+            --severity-threshold=high
+            --json-file-output=snyk-results.json
+            --sarif-file-output=snyk-results.sarif
+
+      - name: Procesar resultados de Snyk
+        id: snyk-results
+        run: |
+          if [ -f snyk-results.json ]; then
+            echo "📊 Analizando resultados de Snyk..."
+            
+            # Contar vulnerabilidades por severidad
+            CRITICAL=$(jq -r '.vulnerabilities[]? | select(.severity == "critical") | .id' snyk-results.json | sort -u | wc -l | tr -d ' ')
+            HIGH=$(jq -r '.vulnerabilities[]? | select(.severity == "high") | .id' snyk-results.json | sort -u | wc -l | tr -d ' ')
+            MEDIUM=$(jq -r '.vulnerabilities[]? | select(.severity == "medium") | .id' snyk-results.json | sort -u | wc -l | tr -d ' ')
+            LOW=$(jq -r '.vulnerabilities[]? | select(.severity == "low") | .id' snyk-results.json | sort -u | wc -l | tr -d ' ')
+            
+            echo "🔍 Resumen de vulnerabilidades encontradas:"
+            echo "  - Críticas: $CRITICAL"
+            echo "  - Altas: $HIGH"
+            echo "  - Medias: $MEDIUM"
+            echo "  - Bajas: $LOW"
+            
+            # Guardar en outputs
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+            
+            # Generar reporte detallado
+            echo "📄 Generando reporte detallado..."
+            jq '.' snyk-results.json > snyk-report-detailed.json
+            
+            # Mostrar vulnerabilidades críticas y altas
+            if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+              echo "⚠️ VULNERABILIDADES CRÍTICAS O ALTAS ENCONTRADAS:"
+              echo ""
+              jq -r '.vulnerabilities[]? | select(.severity == "critical" or .severity == "high") | "\(.severity | ascii_upcase): \(.title) - \(.packageName)@\(.version)\n  ID: \(.id)\n  Descripción: \(.description // "Sin descripción")\n  Enlace: \(.url // "N/A")\n"' snyk-results.json
+              echo ""
+              echo "❌ El escaneo encontró vulnerabilidades críticas o altas. La publicación será bloqueada."
+              echo "block_publish=true" >> $GITHUB_OUTPUT
+            else
+              echo "✅ No se encontraron vulnerabilidades críticas o altas."
+              echo "✅ Solo se encontraron vulnerabilidades de severidad media o baja, que son aceptables."
+              echo "block_publish=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⚠️ No se generó el archivo de resultados de Snyk"
+            echo "block_publish=false" >> $GITHUB_OUTPUT
+            echo "critical=0" >> $GITHUB_OUTPUT
+            echo "high=0" >> $GITHUB_OUTPUT
+            echo "medium=0" >> $GITHUB_OUTPUT
+            echo "low=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Subir reporte SARIF a GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-results.sarif
+          wait-for-processing: false
+
+      - name: Guardar reporte como artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-security-report
+          path: |
+            snyk-results.json
+            snyk-report-detailed.json
+            snyk-results.sarif
+          retention-days: 30
+
+      - name: Mostrar resumen del escaneo
+        if: always()
+        run: |
+          echo "## 🔒 Resumen del Escaneo de Seguridad" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severidad | Cantidad |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Crítica | ${{ steps.snyk-results.outputs.critical }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 Alta | ${{ steps.snyk-results.outputs.high }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Media | ${{ steps.snyk-results.outputs.medium }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Baja | ${{ steps.snyk-results.outputs.low }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.snyk-results.outputs.block_publish }}" == "true" ]; then
+            echo "❌ **La publicación ha sido bloqueada debido a vulnerabilidades críticas o altas.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **El escaneo pasó. Solo se encontraron vulnerabilidades de severidad media o baja.**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📄 Los reportes detallados están disponibles en los artifacts del workflow." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fallar si hay vulnerabilidades críticas o altas
+        if: steps.snyk-results.outputs.block_publish == 'true'
+        run: |
+          echo "❌ Bloqueando la publicación debido a vulnerabilidades críticas o altas encontradas."
+          exit 1
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build, health-check, security-scan]
     permissions:
       contents: read
       packages: write

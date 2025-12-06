@@ -11,6 +11,10 @@ env:
   IMAGE_NAME: calculadora-backend
   REGISTRY: ghcr.io
 
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest

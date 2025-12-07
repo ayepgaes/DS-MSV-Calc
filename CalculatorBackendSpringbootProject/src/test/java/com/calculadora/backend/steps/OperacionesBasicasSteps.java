@@ -28,6 +28,7 @@ public class OperacionesBasicasSteps extends CucumberSpringConfiguration {
         backpack.put("segundo_numero", b);
     }
     
+    //Add
     @When("the two numbers are added$")
     public void WhenTheTwoNumbersAreAdded() {
         double a = (double) backpack.get("primer_numero");
@@ -38,8 +39,20 @@ public class OperacionesBasicasSteps extends CucumberSpringConfiguration {
         //backpack.put("result", result);
     }
     
-    @When("the first is substracted the second")
+    //Substract
+    @When("the first is substracted the second$")
     public void WhenTheFirstIsSubstractedTheSecond() {
+        double a = (double) backpack.get("primer_numero");
+        double b = (double) backpack.get("segundo_numero");
+        double result;
+        //Write code here that turns the phrase above into concrete actions
+        throw new io.cucumber.java.PendingException();
+        //backpack.put("result", result);
+    }
+    
+    //Multiplication
+    @When("the two numbers are multiplied$")
+    public void WhenTheTwoNumbersAreMultiplied() {
         double a = (double) backpack.get("primer_numero");
         double b = (double) backpack.get("segundo_numero");
         double result;

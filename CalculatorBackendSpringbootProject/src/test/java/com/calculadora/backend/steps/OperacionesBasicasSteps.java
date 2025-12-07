@@ -61,6 +61,17 @@ public class OperacionesBasicasSteps extends CucumberSpringConfiguration {
         //backpack.put("result", result);
     }
     
+    //Division
+    @When("the first is divided by the second$")
+    public void WhenTheFirstIsDividedByTheSecond() {
+        double a = (double) backpack.get("primer_numero");
+        double b = (double) backpack.get("segundo_numero");
+        double result;
+        //Write code here that turns the phrase above into concrete actions
+        throw new io.cucumber.java.PendingException();
+        //backpack.put("result", result);
+    }
+    
     @Then("the result should be {double}")
     public void ThenTheResultShouldBe(double c) {
         double result = (double) backpack.get("result");

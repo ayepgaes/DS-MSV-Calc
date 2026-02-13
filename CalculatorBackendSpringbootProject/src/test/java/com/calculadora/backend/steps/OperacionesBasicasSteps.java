@@ -7,6 +7,8 @@ package com.calculadora.backend.steps;
 
 import com.calculadora.backend.CucumberSpringConfiguration;
 import com.calculadora.backend.ScenarioContext;
+import com.calculadora.backend.Servicios.OperacionesBasicasServicios;
+
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -19,6 +21,10 @@ public class OperacionesBasicasSteps extends CucumberSpringConfiguration {
     @Autowired
     ScenarioContext backpack;
     
+    @Autowired 
+    OperacionesBasicasServicios varServicio;
+     
+
     //Factor a (double)
     @Given("the first number is {double}")
     public void GivenTheFirstNumberIs(double a) {
@@ -37,11 +43,12 @@ public class OperacionesBasicasSteps extends CucumberSpringConfiguration {
         double a = (double) backpack.get("primer_numero");
         double b = (double) backpack.get("segundo_numero");
         double result;
+        result = varServicio.sumar(a, b);    
         //Write code here that turns the phrase above into concrete actions
         //Comment once implemented
-        throw new io.cucumber.java.PendingException();
+        //throw new io.cucumber.java.PendingException();
         //Uncomment once implemented
-        //backpack.put("result", result);
+        backpack.put("result", result);
     }
     
     //Substract

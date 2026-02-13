@@ -32,8 +32,15 @@ public class OperacionesBasicasControladores {
     }
 
     @PostMapping("/restar")
-    public double restar(@RequestParam double a, @RequestParam double b) {
-        return servicios.restar(a, b);
+    public ResponseEntity<Object> restar(@RequestBody Map<String,Double> a) {
+        double resp;
+        resp = servicios.restar(a.get("a"), a.get("b"));
+        
+        Map<String,Double> stResp;
+        stResp = new HashMap();
+
+        stResp.put("result", resp);
+        return ResponseEntity.ok(stResp);
     }
 
     @PostMapping("/multiplicar")

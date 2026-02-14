@@ -1,2 +1,26 @@
-- name: DORA lead time for changes
-  uses: DeveloperMetrics/lead-time-for-changes@v1.2.24
+            - name: DORA lead time for changes
+  # You may pin to the exact commit or the version.
+  # uses: DeveloperMetrics/lead-time-for-changes@e05b477a6d5a9a087bd9eb70fe7708460917cda6
+  uses: DeveloperMetrics/lead-time-for-changes@1.1.0
+  with:
+    # the workflow name that is being scanned. Separate multiple workflows with commas
+    workflows: 
+    # the target org/repo or owner/repo to run the calculation on
+    owner-repo: # default is ${{ github.repository }}
+    # branch that is deploying to production
+    default-branch: # default is main
+    # number of days to scan
+    number-of-days: # default is 30
+    # accepts two values, 'last' - to start timing from the last commit of a PR, and 'first' to start timing from the first commit of a PR
+    commit-counting-method: # default is last
+    # GitHub PAT Token
+    pat-token: # optional, default is 
+    # GitHub Actions Token, commonly passed in as a variable (secrets.GITHUB_TOKEN)
+    actions-token: # optional, default is 
+    # application id of the registered GitHub app
+    app-id: # optional, default is 
+    # id of the installed instance of the GitHub app
+    app-install-id: # optional, default is 
+    # private key which has been generated for the installed instance of the GitHub app
+    app-private-key: # optional, default is 
+          

@@ -8,7 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
+      pull-requests: read
+      artifact-metadata: read
     steps:
     - name: DORA lead time for changes
       uses: DeveloperMetrics/lead-time-for-changes@v1.2.24
+      with:
+        workflows: 'CI'
           

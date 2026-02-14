@@ -1,0 +1,25 @@
+name: DORA Lead Time for Changes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  calculate-dora:
+    runs-on: ubuntu-latest
+    name: Calculate DORA Metrics
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate Lead Time
+        uses: DeveloperMetrics/lead-time-for-changes@v1.2.24
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflows: 'docker-build.yml'  # ⚠️ VERIFY THIS FILE EXISTS
+
+      - name: Print Results
+        run: |
+          echo "Lead Time Calculation Complete."
